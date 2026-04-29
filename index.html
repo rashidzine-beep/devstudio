@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Impact Way — Production Queue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f3ed;
+    --bg-card: #fdfcf8;
+    --ink: #1a1a1a;
+    --ink-soft: #4a4a4a;
+    --ink-muted: #8a8680;
+    --line: #e5e1d6;
+    --accent: #c2410c;
+    --accent-soft: #f5d0b5;
+    --linkedin: #0a66c2;
+    --linkedin-soft: #c8e1f5;
+    --success: #166534;
+    --fail: #991b1b;
+    --shadow: 0 1px 2px rgba(26,26,26,0.04), 0 8px 24px rgba(26,26,26,0.04);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Fraunces', 'Georgia', serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 17px;
+    line-height: 1.55;
+    min-height: 100vh;
+    padding: 48px 24px 120px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell { max-width: 920px; margin: 0 auto; }
+
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 28px;
+    margin-bottom: 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .brand {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: 34px;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .brand em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+  }
+
+  .subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+
+  /* Tab bar */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--line);
+    margin-bottom: 28px;
+  }
+  .tab {
+    background: transparent;
+    border: none;
+    padding: 14px 24px;
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--ink-muted);
+    cursor: pointer;
+    position: relative;
+    margin-bottom: -2px;
+    border-bottom: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: color 0.15s ease;
+  }
+  .tab:hover { color: var(--ink-soft); }
+  .tab.active {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+  }
+  .tab.active.linkedin { border-bottom-color: var(--linkedin); }
+  .tab .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--line);
+    color: var(--ink-soft);
+    padding: 2px 8px;
+    border-radius: 999px;
+    min-width: 24px;
+    text-align: center;
+  }
+  .tab.active .count {
+    background: var(--accent);
+    color: var(--bg-card);
+  }
+  .tab.active.linkedin .count { background: var(--linkedin); }
+
+  .meta-bar {
+    display: flex;
+    gap: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  .meta-bar strong { color: var(--ink); font-weight: 500; }
+  .refresh-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    padding: 6px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s ease;
+  }
+  .refresh-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+  .empty-state, .loading-state, .error-state {
+    padding: 80px 24px;
+    text-align: center;
+    font-style: italic;
+    color: var(--ink-muted);
+    font-size: 19px;
+  }
+  .error-state {
+    color: var(--fail);
+    font-style: normal;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+  }
+
+  .script-card {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 24px 28px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+    transition: border-color 0.2s ease;
+  }
+  .script-card:hover { border-color: var(--ink-soft); }
+  .script-card.selected {
+    border-color: var(--accent);
+    background: #fdf6f0;
+  }
+  .script-card.selected.linkedin {
+    border-color: var(--linkedin);
+    background: #f0f7fc;
+  }
+  .script-card.approved {
+    opacity: 0.7;
+    background: #f7f5ee;
+  }
+
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 14px;
+  }
+
+  .card-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    flex-wrap: wrap;
+  }
+  .id-tag {
+    background: var(--line);
+    padding: 3px 8px;
+    border-radius: 2px;
+    color: var(--ink-soft);
+  }
+  .status-tag {
+    padding: 3px 8px;
+    border-radius: 2px;
+    font-weight: 500;
+  }
+  .status-tag.draft { background: var(--line); color: var(--ink-soft); }
+  .status-tag.approved { background: var(--accent-soft); color: var(--accent); }
+
+  .checkbox-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .checkbox-wrap.disabled { opacity: 0.4; cursor: not-allowed; }
+  .checkbox-wrap input[type="checkbox"] {
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border: 1.5px solid var(--ink-soft);
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+    background: transparent;
+    transition: all 0.15s ease;
+  }
+  .checkbox-wrap input[type="checkbox"]:hover { border-color: var(--accent); }
+  .checkbox-wrap input[type="checkbox"]:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .linkedin-tab .checkbox-wrap input[type="checkbox"]:checked {
+    background: var(--linkedin);
+    border-color: var(--linkedin);
+  }
+  .checkbox-wrap input[type="checkbox"]:checked::after {
+    content: "✓";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .label-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .script-title {
+    font-size: 24px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    margin-bottom: 12px;
+  }
+
+  .hook-block {
+    border-left: 2px solid var(--accent);
+    padding: 4px 0 4px 16px;
+    margin: 14px 0;
+    font-style: italic;
+    font-size: 18px;
+    line-height: 1.5;
+  }
+  .linkedin-tab .hook-block { border-left-color: var(--linkedin); }
+  .hook-label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    font-style: normal;
+    margin-bottom: 4px;
+  }
+
+  .body-preview {
+    color: var(--ink-soft);
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 14px;
+  }
+
+  .toggle-full {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 0;
+    font-weight: 500;
+  }
+  .linkedin-tab .toggle-full { color: var(--linkedin); }
+  .toggle-full:hover { text-decoration: underline; }
+
+  .full-detail {
+    display: none;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px dashed var(--line);
+  }
+  .full-detail.show { display: block; }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 18px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .field-row:last-child { border-bottom: none; }
+  .field-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    padding-top: 2px;
+  }
+  .field-value { color: var(--ink-soft); line-height: 1.55; }
+  .field-value pre {
+    font-family: 'Fraunces', serif;
+    font-size: 14px;
+    white-space: pre-wrap;
+    color: var(--ink-soft);
+    line-height: 1.6;
+  }
+  .colour-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+
+  /* Bottom action bar */
+  .action-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border-top: 1px solid var(--line);
+    padding: 16px 24px;
+    box-shadow: 0 -4px 20px rgba(26,26,26,0.06);
+    z-index: 10;
+  }
+
+  .action-inner {
+    max-width: 920px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .selection-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .selection-count strong {
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .linkedin-tab .selection-count strong { color: var(--linkedin); }
+
+  .approve-btn {
+    background: var(--ink);
+    color: var(--bg);
+    border: none;
+    padding: 14px 32px;
+    font-family: 'Fraunces', serif;
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .approve-btn:hover:not(:disabled) { background: var(--accent); }
+  .linkedin-tab .approve-btn:hover:not(:disabled) { background: var(--linkedin); }
+  .approve-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: var(--bg);
+    padding: 14px 24px;
+    border-radius: 2px;
+    font-size: 14px;
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 20;
+    pointer-events: none;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast.error { background: var(--fail); }
+  .toast.success { background: var(--success); }
+
+  .script-card { animation: fadeUp 0.4s ease forwards; opacity: 0; }
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(10px); }
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 28px 14px 130px; font-size: 16px; }
+    .brand { font-size: 26px; }
+    .tab { padding: 12px 16px; font-size: 16px; }
+    .script-card { padding: 18px; }
+    .card-top { flex-direction: column; gap: 12px; }
+    .script-title { font-size: 20px; }
+    .field-row { grid-template-columns: 1fr; gap: 4px; }
+    .action-inner { flex-direction: column; gap: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <header>
+    <div>
+      <div class="brand">Impact <em>Way</em></div>
+      <div class="subtitle" style="margin-top:4px">Production Queue</div>
+    </div>
+    <button class="refresh-btn" onclick="loadCurrentQueue()">Refresh</button>
+  </header>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" id="tab-reels" onclick="switchQueue('reels')">
+      <span>🎬 Reels</span>
+      <span class="count" id="count-reels">—</span>
+    </button>
+    <button class="tab linkedin" id="tab-linkedin" onclick="switchQueue('linkedin')">
+      <span>💼 LinkedIn</span>
+      <span class="count" id="count-linkedin">—</span>
+    </button>
+  </div>
+
+  <div class="meta-bar">
+    <span><strong id="last-updated">—</strong></span>
+  </div>
+
+  <div id="container">
+    <div class="loading-state">Loading…</div>
+  </div>
+</div>
+
+<div class="action-bar">
+  <div class="action-inner">
+    <span class="selection-count"><strong id="selected-count">0</strong> selected for production</span>
+    <button class="approve-btn" id="approve-btn" disabled onclick="approveSelected()">Approve Selected</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // =======================================================
+  // CONFIG — paste Apps Script Web App URL after deploying
+  // =======================================================
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwb28xLUlhnzo3-hJpDaYYXEm4281tA1YIIMmOvYDxTFKk3CxMDriLuneJZU3aq7_dX/exec';
+
+  // State
+  let currentQueue = 'reels';
+  let queueData = { reels: [], linkedin: [] };
+  let selected = { reels: new Set(), linkedin: new Set() };
+
+  function showToast(message, type = 'default') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast show ' + type;
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  function switchQueue(queue) {
+    currentQueue = queue;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + queue).classList.add('active');
+    document.body.classList.toggle('linkedin-tab', queue === 'linkedin');
+    renderCurrentQueue();
+  }
+
+  async function loadCurrentQueue() {
+    await loadQueue(currentQueue);
+    // Also refresh the other queue's count silently
+    const other = currentQueue === 'reels' ? 'linkedin' : 'reels';
+    loadQueue(other, true);
+  }
+
+  async function loadQueue(queue, silent = false) {
+    if (!silent) {
+      const container = document.getElementById('container');
+      container.innerHTML = '<div class="loading-state">Loading…</div>';
+    }
+
+    if (APPS_SCRIPT_URL === 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE') {
+      document.getElementById('container').innerHTML = '<div class="error-state">Dashboard is not configured yet.<br>Edit this file and set APPS_SCRIPT_URL at the top of the script block.</div>';
+      return;
+    }
+
+    try {
+      const res = await fetch(APPS_SCRIPT_URL + '?action=list&queue=' + queue);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      queueData[queue] = data.scripts || [];
+      selected[queue] = new Set();
+
+      document.getElementById('count-' + queue).textContent = queueData[queue].length;
+
+      if (queue === currentQueue && !silent) {
+        renderCurrentQueue();
+      }
+      updateMeta();
+    } catch (err) {
+      if (!silent) {
+        document.getElementById('container').innerHTML =
+          '<div class="error-state">Failed to load.<br>' + err.message + '</div>';
+        showToast('Load failed: ' + err.message, 'error');
+      }
+    }
+  }
+
+  function renderCurrentQueue() {
+    const container = document.getElementById('container');
+    const items = queueData[currentQueue];
+
+    if (items.length === 0) {
+      const msg = currentQueue === 'reels'
+        ? 'No Reels in the queue.<br>Send Claude a YouTube URL or topic to fill this list.'
+        : 'No LinkedIn posts in the queue.<br>Ask Claude for a LinkedIn version of any Reel script.';
+      container.innerHTML = '<div class="empty-state">' + msg + '</div>';
+      updateActionBar();
+      return;
+    }
+
+    container.innerHTML = '';
+    items.forEach((item, i) => {
+      const card = currentQueue === 'reels' ? renderReelCard(item, i) : renderLinkedInCard(item, i);
+      container.appendChild(card);
+    });
+
+    updateActionBar();
+  }
+
+  function renderReelCard(item, i) {
+    const card = document.createElement('article');
+    card.className = 'script-card';
+    if (item.status === 'Approved') card.classList.add('approved');
+    card.style.animationDelay = (i * 30) + 'ms';
+
+    const wordCount = (item.body || '').split(/\s+/).filter(Boolean).length;
+    const sec = Math.round(wordCount / 2.5);
+    const isApproved = item.status === 'Approved';
+
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-meta">
+          <span class="id-tag">${escapeHtml(item.id)}</span>
+          <span>${wordCount} words · ~${sec}s</span>
+          <span class="status-tag ${isApproved ? 'approved' : 'draft'}">${escapeHtml(item.status || 'Draft')}</span>
+        </div>
+        <label class="checkbox-wrap ${isApproved ? 'disabled' : ''}">
+          <input type="checkbox" data-id="${escapeHtml(item.id)}" ${isApproved ? 'disabled' : ''}>
+          <span class="label-text">Approve</span>
+        </label>
+      </div>
+      <h2 class="script-title">${escapeHtml(item.title || 'Untitled')}</h2>
+      <div class="hook-block">
+        <span class="hook-label">Hook</span>
+        ${escapeHtml(item.hook || '—')}
+      </div>
+      <div class="body-preview">${escapeHtml(truncate(item.body || '', 180))}</div>
+      <button class="toggle-full" onclick="toggleDetail('${item.id}')">View full →</button>
+      <div class="full-detail" id="detail-${item.id}">
+        <div class="field-row">
+          <div class="field-label">Full Body</div>
+          <div class="field-value"><pre>${escapeHtml(item.body || '')}</pre></div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Thumbnail</div>
+          <div class="field-value">${escapeHtml(item.thumbSubject || '—')}</div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Source</div>
+          <div class="field-value">${item.sourceUrl ? '<a href="' + escapeHtml(item.sourceUrl) + '" target="_blank">Open source</a>' : '—'}</div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">LinkedIn version?</div>
+          <div class="field-value">${item.generateLi === 'TRUE' ? 'Yes — will generate' : 'No'}</div>
+        </div>
+      </div>
+    `;
+    attachCheckbox(card, item.id);
+    return card;
+  }
+
+  function renderLinkedInCard(item, i) {
+    const card = document.createElement('article');
+    card.className = 'script-card';
+    if (item.status === 'Approved') card.classList.add('approved');
+    card.style.animationDelay = (i * 30) + 'ms';
+
+    const charCount = (item.postBody || '').length;
+    const isApproved = item.status === 'Approved';
+    const accent = item.accent || '';
+
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-meta">
+          <span class="id-tag">${escapeHtml(item.id)}</span>
+          <span>${charCount} chars</span>
+          <span class="status-tag ${isApproved ? 'approved' : 'draft'}">${escapeHtml(item.status || 'Draft')}</span>
+        </div>
+        <label class="checkbox-wrap ${isApproved ? 'disabled' : ''}">
+          <input type="checkbox" data-id="${escapeHtml(item.id)}" ${isApproved ? 'disabled' : ''}>
+          <span class="label-text">Approve</span>
+        </label>
+      </div>
+      <h2 class="script-title">${escapeHtml(item.headline || 'Untitled')}</h2>
+      <div class="hook-block">
+        <span class="hook-label">Body preview</span>
+        ${escapeHtml(truncate(item.postBody || '', 200))}
+      </div>
+      <button class="toggle-full" onclick="toggleDetail('${item.id}')">View full →</button>
+      <div class="full-detail" id="detail-${item.id}">
+        <div class="field-row">
+          <div class="field-label">Full Post</div>
+          <div class="field-value"><pre>${escapeHtml(item.postBody || '')}</pre></div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Headline</div>
+          <div class="field-value">${escapeHtml(item.headline || '—')}</div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Subject</div>
+          <div class="field-value">${escapeHtml(item.subject || '—')}</div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Accent</div>
+          <div class="field-value">${accent ? '<span class="colour-swatch" style="background:' + escapeHtml(accent) + '"></span>' : ''}${escapeHtml(accent || '—')}</div>
+        </div>
+      </div>
+    `;
+    attachCheckbox(card, item.id);
+    return card;
+  }
+
+  function attachCheckbox(card, id) {
+    const cb = card.querySelector('input[type="checkbox"]');
+    if (!cb || cb.disabled) return;
+    cb.addEventListener('change', (e) => {
+      const itemId = e.target.dataset.id;
+      if (e.target.checked) {
+        selected[currentQueue].add(itemId);
+        card.classList.add('selected');
+        if (currentQueue === 'linkedin') card.classList.add('linkedin');
+      } else {
+        selected[currentQueue].delete(itemId);
+        card.classList.remove('selected', 'linkedin');
+      }
+      updateActionBar();
+    });
+  }
+
+  function toggleDetail(id) {
+    const detail = document.getElementById('detail-' + id);
+    if (detail) detail.classList.toggle('show');
+  }
+
+  function updateMeta() {
+    const now = new Date();
+    const formatted = now.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    document.getElementById('last-updated').textContent = 'updated ' + formatted;
+  }
+
+  function updateActionBar() {
+    const count = selected[currentQueue].size;
+    document.getElementById('selected-count').textContent = count;
+    document.getElementById('approve-btn').disabled = count === 0;
+  }
+
+  async function approveSelected() {
+    const ids = Array.from(selected[currentQueue]);
+    if (ids.length === 0) return;
+    const btn = document.getElementById('approve-btn');
+    btn.disabled = true;
+    btn.textContent = 'Approving…';
+
+    try {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'approve', queue: currentQueue, ids: ids })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      showToast(`${ids.length} ${ids.length === 1 ? 'item' : 'items'} sent to production`, 'success');
+      setTimeout(loadCurrentQueue, 600);
+    } catch (err) {
+      showToast('Approval failed: ' + err.message, 'error');
+      btn.disabled = false;
+    } finally {
+      btn.textContent = 'Approve Selected';
+    }
+  }
+
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function truncate(s, n) {
+    if (s.length <= n) return s;
+    return s.substring(0, n).trim() + '…';
+  }
+
+  // Initial: load both queues, render Reels first
+  loadQueue('reels');
+  loadQueue('linkedin', true);
+</script>
+
+</body>
+</html>
